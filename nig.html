@@ -3,83 +3,64 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video to Audio Converter</title>
+<title>Video → Audio</title>
 <style>
-  body { font-family: sans-serif; background: linear-gradient(to right, #4b6cb7, #182848); color: white; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
-  .container { background: rgba(0,0,0,0.5); padding: 20px; border-radius: 12px; max-width: 500px; width:100%; text-align:center; }
-  input, select, button { margin:5px 0; padding:8px; border-radius:6px; border:none; }
-  audio { width:100%; margin-top:10px; }
-  #drop { border: 2px dashed #fff; padding: 20px; margin-bottom:10px; cursor:pointer; }
+body { font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; background:#111; color:white; }
+.container { background: rgba(0,0,0,0.7); padding:20px; border-radius:10px; text-align:center; width:300px; }
+#drop { border:2px dashed white; padding:20px; cursor:pointer; margin-bottom:10px; }
+audio { width:100%; margin-top:10px; }
+button { padding:10px; margin-top:5px; border:none; border-radius:5px; cursor:pointer; background:#4caf50; color:white; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>Video → Audio</h1>
-  <div id="drop">Drag & Drop a video here or click to select</div>
-  <input type="file" id="fileInput" accept="video/*" style="display:none">
-  <br>
-  <select id="format">
-    <option value="mp3">MP3</option>
-    <option value="wav">WAV</option>
-    <option value="m4a">M4A</option>
-    <option value="ogg">OGG</option>
-  </select>
-  <br>
-  <button id="convert">Convert</button>
-  <p id="status"></p>
-  <audio id="audio" controls></audio>
-  <a id="download" href="#" download style="display:block; margin-top:5px; color:#0f0;">Download</a>
+<h2>Video → MP3</h2>
+<div id="drop">Drag & Drop a video or click</div>
+<input type="file" id="fileInput" accept="video/*" style="display:none">
+<button id="convert">Convert</button>
+<p id="status"></p>
+<a id="download" href="#" download style="display:block;color:#0f0;margin-top:5px;">Download MP3</a>
+<audio id="audio" controls></audio>
 </div>
 
-<script type="module">
-import { createFFmpeg, fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg/+esm';
-
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.2/dist/ffmpeg.min.js"></script>
+<script>
+const { createFFmpeg, fetchFile } = FFmpeg;
 const ffmpeg = createFFmpeg({ log:true });
-const fileInput = document.getElementById('fileInput');
+
+let file = null;
 const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
 const convertBtn = document.getElementById('convert');
 const status = document.getElementById('status');
-const formatSelect = document.getElementById('format');
 const audioElem = document.getElementById('audio');
 const downloadLink = document.getElementById('download');
 
-let selectedFile = null;
-
-// Drag & drop
 drop.addEventListener('click', ()=>fileInput.click());
 drop.addEventListener('dragover', e=>{ e.preventDefault(); e.stopPropagation(); drop.style.borderColor='yellow'; });
 drop.addEventListener('dragleave', e=>{ e.preventDefault(); e.stopPropagation(); drop.style.borderColor='white'; });
 drop.addEventListener('drop', e=>{
-  e.preventDefault();
-  e.stopPropagation();
-  drop.style.borderColor='white';
-  selectedFile = e.dataTransfer.files[0];
-  drop.textContent = selectedFile.name;
+    e.preventDefault(); e.stopPropagation(); drop.style.borderColor='white';
+    file = e.dataTransfer.files[0];
+    drop.textContent = file.name;
 });
-
-// File picker
-fileInput.addEventListener('change', e=>{ selectedFile = e.target.files[0]; drop.textContent = selectedFile.name; });
+fileInput.addEventListener('change', e=>{ file = e.target.files[0]; drop.textContent = file.name; });
 
 convertBtn.addEventListener('click', async ()=>{
-  if(!selectedFile){ alert('Select a video first'); return; }
-
-  status.textContent = 'Loading ffmpeg...';
-  if(!ffmpeg.isLoaded()) await ffmpeg.load();
-
-  const inName = 'input' + selectedFile.name.match(/\.[^.]+$/)?.[0];
-  const outName = 'output.' + formatSelect.value;
-  ffmpeg.FS('writeFile', inName, await fetchFile(selectedFile));
-
-  status.textContent = 'Converting...';
-  await ffmpeg.run('-i', inName, '-vn', '-ar', '44100', '-ab', '192k', '-y', outName);
-
-  const data = ffmpeg.FS('readFile', outName);
-  const blob = new Blob([data.buffer], { type: 'audio/' + (formatSelect.value==='mp3'?'mpeg':formatSelect.value) });
-  const url = URL.createObjectURL(blob);
-  audioElem.src = url;
-  downloadLink.href = url;
-  downloadLink.download = 'converted.' + formatSelect.value;
-  status.textContent = 'Conversion done!';
+    if(!file){ alert('Pick a video first'); return; }
+    status.textContent = 'Loading ffmpeg...';
+    if(!ffmpeg.isLoaded()) await ffmpeg.load();
+    const inName = 'input' + file.name.match(/\.[^.]+$/)?.[0];
+    const outName = 'output.mp3';
+    ffmpeg.FS('writeFile', inName, await fetchFile(file));
+    status.textContent = 'Converting...';
+    await ffmpeg.run('-i', inName, '-vn', '-ar', '44100', '-ab', '192k', '-y', outName);
+    const data = ffmpeg.FS('readFile', outName);
+    const blob = new Blob([data.buffer], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+    audioElem.src = url;
+    downloadLink.href = url;
+    status.textContent = 'Done!';
 });
 </script>
 </body>
